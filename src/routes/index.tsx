@@ -23,6 +23,7 @@ import {
   Building2,
   LogIn,
   KeyRound,
+  ExternalLink,
   X,
 } from "lucide-react";
 
@@ -417,68 +418,130 @@ function KisanQueueApp() {
             })}
           </nav>
 
-          {/* Clean Portal Navigation Links in Rail */}
-          <div className="mt-6 space-y-1.5 border-t border-border/50 pt-4 text-xs font-medium text-muted-foreground">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 px-2 mb-1">
-              Official Portals & Accessibility
-            </p>
-            <button
-              onClick={() => navigate({ to: "/login" })}
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-colors text-left"
-            >
-              <span className="flex items-center gap-2">
-                <LogIn className="size-4 text-primary" /> Farmer Login (/login)
+          {/* Official Portals & Accessibility Hub in Rail */}
+          <div className="mt-6 border-t border-border/50 pt-4 space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/90">
+                Official Portals & Modes
+              </p>
+              <span className="text-[9px] font-bold text-primary/90 uppercase tracking-widest bg-primary/10 px-1.5 py-0.5 rounded-md">
+                New Tab ↗
               </span>
-              <ChevronRight className="size-3.5 text-muted-foreground" />
-            </button>
-            <button
-              onClick={() => navigate({ to: "/old" })}
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 transition-colors text-left dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60"
-            >
-              <span className="flex items-center gap-2">
-                <span className="text-base">👵</span> 60+ Senior Mode (/old)
-              </span>
-              <ChevronRight className="size-3.5 text-muted-foreground" />
-            </button>
-            <button
-              onClick={() => navigate({ to: "/call" })}
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 transition-colors text-left dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60"
-            >
-              <span className="flex items-center gap-2">
-                <PhoneCall className="size-4 text-amber-700 dark:text-amber-400" /> IVR Call Booking (/call)
-              </span>
-              <ChevronRight className="size-3.5 text-muted-foreground" />
-            </button>
-            <button
-              onClick={() => navigate({ to: "/staff" })}
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-colors text-left"
-            >
-              <span className="flex items-center gap-2">
-                <Building2 className="size-4 text-primary" /> Staff Portal (/staff)
-              </span>
-              <ChevronRight className="size-3.5 text-muted-foreground" />
-            </button>
-            <button
-              onClick={() => navigate({ to: "/admin" })}
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-colors text-left"
-            >
-              <span className="flex items-center gap-2">
-                <ShieldCheck className="size-4 text-primary" /> Admin Directorate (/admin)
-              </span>
-              <ChevronRight className="size-3.5 text-muted-foreground" />
-            </button>
-            <button
-              onClick={() => {
-                logout();
-                setFarmerScreen("splash");
-                addNotification("Logged Out", "You have been logged out of KisanQueue.", "info");
-              }}
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors text-left cursor-pointer"
-            >
-              <span className="flex items-center gap-2">
-                <LogOut className="size-4" /> {language === "ml" ? "ലോഗ് ഔട്ട്" : "Log Out"}
-              </span>
-            </button>
+            </div>
+
+            <div className="space-y-1.5">
+              {/* Farmer Onboarding / Login */}
+              <a
+                href="/login"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center justify-between rounded-xl border border-border/70 bg-card/50 p-2 text-xs font-semibold text-foreground hover:bg-card hover:border-primary/50 hover:shadow-xs transition-all"
+                title="Open Farmer Login & Onboarding in a new tab"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                    <LogIn className="size-3.5" />
+                  </span>
+                  <span>Farmer Login</span>
+                </span>
+                <span className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground group-hover:text-primary transition-colors">
+                  /login <ExternalLink className="size-3" />
+                </span>
+              </a>
+
+              {/* 60+ Senior Citizen Mode */}
+              <a
+                href="/old"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center justify-between rounded-xl border border-emerald-300/80 bg-emerald-50/60 p-2 text-xs font-bold text-emerald-950 hover:bg-emerald-100/80 transition-all dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800/80 hover:shadow-xs"
+                title="Open Senior Mode (Large fonts & Malayalam voice) in a new tab"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-600 text-white text-xs">
+                    👵
+                  </span>
+                  <span>60+ Senior Mode</span>
+                </span>
+                <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-700 dark:text-emerald-400">
+                  /old <ExternalLink className="size-3" />
+                </span>
+              </a>
+
+              {/* IVR Toll-Free Phone Call Simulator */}
+              <a
+                href="/call"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center justify-between rounded-xl border border-amber-300/80 bg-amber-50/60 p-2 text-xs font-bold text-amber-950 hover:bg-amber-100/80 transition-all dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800/80 hover:shadow-xs"
+                title="Open Toll-Free IVR Phone Hotline Simulator in a new tab"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-lg bg-amber-600 text-white">
+                    <PhoneCall className="size-3" />
+                  </span>
+                  <span>IVR Phone Booking</span>
+                </span>
+                <span className="flex items-center gap-1 text-[10px] font-mono text-amber-700 dark:text-amber-400">
+                  /call <ExternalLink className="size-3" />
+                </span>
+              </a>
+
+              {/* Staff Yard Terminal */}
+              <a
+                href="/staff"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center justify-between rounded-xl border border-border/70 bg-card/50 p-2 text-xs font-semibold text-foreground hover:bg-card hover:border-indigo-400 hover:shadow-xs transition-all"
+                title="Open Staff Yard Inspection & Verification Portal in a new tab"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
+                    <Building2 className="size-3.5" />
+                  </span>
+                  <span>Staff Portal</span>
+                </span>
+                <span className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground group-hover:text-indigo-600 transition-colors">
+                  /staff <ExternalLink className="size-3" />
+                </span>
+              </a>
+
+              {/* Admin Directorate */}
+              <a
+                href="/admin"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center justify-between rounded-xl border border-border/70 bg-card/50 p-2 text-xs font-semibold text-foreground hover:bg-card hover:border-purple-400 hover:shadow-xs transition-all"
+                title="Open Directorate Admin & Quotas in a new tab"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-lg bg-purple-500/15 text-purple-600 dark:text-purple-400">
+                    <ShieldCheck className="size-3.5" />
+                  </span>
+                  <span>Admin Directorate</span>
+                </span>
+                <span className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground group-hover:text-purple-600 transition-colors">
+                  /admin <ExternalLink className="size-3" />
+                </span>
+              </a>
+
+              {/* Logout button (only shows if logged in) */}
+              {isLoggedIn && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    setFarmerScreen("splash");
+                    addNotification("Logged Out", "You have been logged out of KisanQueue.", "info");
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors text-left cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <LogOut className="size-4" /> {language === "ml" ? "ലോഗ് ഔട്ട്" : "Log Out"}
+                  </span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Live Token Snapshot in Rail */}
@@ -786,76 +849,160 @@ function FarmerProfileView({
         </a>
       </div>
 
-      {/* Official Government Portals */}
-      <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          {t(language, "govPortals")} & Special Modes
-        </h3>
-        <div className="grid grid-cols-1 gap-2">
-          <button
-            onClick={() => navigate({ to: "/login" })}
-            className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 p-3 text-xs font-bold text-primary hover:bg-primary/10 transition-all"
+      {/* Official Government Portals & Accessibility Hub */}
+      <div className="rounded-3xl border border-border/80 bg-gradient-to-br from-card to-muted/30 p-4.5 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="flex size-6 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs">
+              🏛️
+            </span>
+            <h3 className="text-xs font-black text-foreground uppercase tracking-wider">
+              {t(language, "govPortals")} & Access Modes
+            </h3>
+          </div>
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+            <span>New Tab</span>
+            <ExternalLink className="size-2.5" />
+          </span>
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-snug">
+          Dedicated standalone portals for all stakeholders. Click any portal to launch in a new window without disrupting your active queue session.
+        </p>
+
+        <div className="grid grid-cols-1 gap-2.5 pt-1">
+          {/* Farmer Login */}
+          <a
+            href="/login"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center justify-between rounded-2xl border border-primary/25 bg-primary/5 p-3 hover:bg-primary/10 transition-all"
           >
-            <div className="flex items-center gap-2.5">
-              <LogIn className="size-4 text-primary" />
-              <span>🌾 {language === "ml" ? "കർഷക ലോഗിൻ പോർട്ടൽ" : "Farmer Login Portal"}</span>
-            </div>
-            <span className="text-[11px] text-primary/80 font-mono">/login</span>
-          </button>
-          <button
-            onClick={() => navigate({ to: "/old" })}
-            className="flex items-center justify-between rounded-xl border border-emerald-300 bg-emerald-50/80 p-3 text-xs font-bold text-emerald-950 hover:bg-emerald-100 transition-all dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-base">👵</span>
-              <span>
-                {language === "ml"
-                  ? "മുതിർന്ന കർഷകർക്കുള്ള മോഡ് (60+ Senior Mode)"
-                  : "Senior Farmers Mode (60+)"}
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
+                <LogIn className="size-4" />
               </span>
+              <div>
+                <strong className="block text-xs font-extrabold text-foreground group-hover:text-primary transition-colors">
+                  {language === "ml" ? "കർഷക ലോഗിൻ പോർട്ടൽ" : "Farmer Login & Sign-Up"}
+                </strong>
+                <span className="block text-[10px] text-muted-foreground">
+                  OTP verification & profile setup
+                </span>
+              </div>
             </div>
-            <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400">/old</span>
-          </button>
-          <button
-            onClick={() => navigate({ to: "/call" })}
-            className="flex items-center justify-between rounded-xl border border-amber-300 bg-amber-50/80 p-3 text-xs font-bold text-amber-950 hover:bg-amber-100 transition-all dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
+            <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-primary bg-primary/10 px-2 py-1 rounded-lg">
+              <span>/login</span>
+              <ExternalLink className="size-3" />
+            </div>
+          </a>
+
+          {/* Senior Mode */}
+          <a
+            href="/old"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center justify-between rounded-2xl border border-emerald-300/80 bg-emerald-50/70 p-3 hover:bg-emerald-100 transition-all dark:bg-emerald-950/30 dark:border-emerald-800/80"
           >
-            <div className="flex items-center gap-2.5">
-              <span className="text-base">📞</span>
-              <span>
-                {language === "ml"
-                  ? "ടോൾ-ഫ്രീ IVR ഫോൺ കോൾ ബുക്കിംഗ് (1800-425-1661)"
-                  : "Toll-Free IVR Call Booking (1800-425-1661)"}
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-700 text-white text-base shadow-xs">
+                👵
               </span>
+              <div>
+                <strong className="block text-xs font-extrabold text-emerald-950 dark:text-emerald-200">
+                  {language === "ml"
+                    ? "മുതിർന്ന കർഷകർക്കുള്ള മോഡ് (60+ Senior Mode)"
+                    : "Senior Citizens Mode (60+)"}
+                </strong>
+                <span className="block text-[10px] text-emerald-800/80 dark:text-emerald-400/80">
+                  Ultra-large typography & Malayalam voice
+                </span>
+              </div>
             </div>
-            <span className="text-[11px] font-mono text-amber-700 dark:text-amber-400">/call</span>
-          </button>
-          <button
-            onClick={() => {
-              setRole("staff");
-              navigate({ to: "/staff" });
-            }}
-            className="flex items-center justify-between rounded-xl border border-border bg-muted/30 p-3 text-xs font-bold text-foreground hover:bg-muted transition-all"
+            <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-200/60 dark:bg-emerald-900/50 px-2 py-1 rounded-lg">
+              <span>/old</span>
+              <ExternalLink className="size-3" />
+            </div>
+          </a>
+
+          {/* IVR Call */}
+          <a
+            href="/call"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center justify-between rounded-2xl border border-amber-300/80 bg-amber-50/70 p-3 hover:bg-amber-100 transition-all dark:bg-amber-950/30 dark:border-amber-800/80"
           >
-            <div className="flex items-center gap-2.5">
-              <Building2 className="size-4 text-primary" />
-              <span>🏢 {t(language, "staffDashboard")}</span>
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-amber-600 text-white shadow-xs">
+                <PhoneCall className="size-4" />
+              </span>
+              <div>
+                <strong className="block text-xs font-extrabold text-amber-950 dark:text-amber-200">
+                  {language === "ml"
+                    ? "IVR ടോൾ-ഫ്രീ ഫോൺ കോൾ ബുക്കിംഗ്"
+                    : "Toll-Free IVR Call Booking (1800-425-1661)"}
+                </strong>
+                <span className="block text-[10px] text-amber-800/80 dark:text-amber-400/80">
+                  Dial-in telephone voice booking simulation
+                </span>
+              </div>
             </div>
-            <span className="text-[11px] text-muted-foreground font-mono">/staff</span>
-          </button>
-          <button
-            onClick={() => {
-              setRole("admin");
-              navigate({ to: "/admin" });
-            }}
-            className="flex items-center justify-between rounded-xl border border-border bg-muted/30 p-3 text-xs font-bold text-foreground hover:bg-muted transition-all"
+            <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-amber-800 dark:text-amber-300 bg-amber-200/60 dark:bg-amber-900/50 px-2 py-1 rounded-lg">
+              <span>/call</span>
+              <ExternalLink className="size-3" />
+            </div>
+          </a>
+
+          {/* Staff Dashboard */}
+          <a
+            href="/staff"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center justify-between rounded-2xl border border-border/80 bg-card p-3 hover:bg-muted/60 transition-all"
           >
-            <div className="flex items-center gap-2.5">
-              <ShieldCheck className="size-4 text-primary" />
-              <span>🧑‍💼 {t(language, "adminDashboard")}</span>
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 shadow-xs">
+                <Building2 className="size-4" />
+              </span>
+              <div>
+                <strong className="block text-xs font-extrabold text-foreground group-hover:text-indigo-600 transition-colors">
+                  {t(language, "staffDashboard")}
+                </strong>
+                <span className="block text-[10px] text-muted-foreground">
+                  Moisture testing, weighment & queue calling
+                </span>
+              </div>
             </div>
-            <span className="text-[11px] text-muted-foreground font-mono">/admin</span>
-          </button>
+            <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-muted-foreground bg-muted px-2 py-1 rounded-lg">
+              <span>/staff</span>
+              <ExternalLink className="size-3" />
+            </div>
+          </a>
+
+          {/* Admin Directorate */}
+          <a
+            href="/admin"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center justify-between rounded-2xl border border-border/80 bg-card p-3 hover:bg-muted/60 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 shadow-xs">
+                <ShieldCheck className="size-4" />
+              </span>
+              <div>
+                <strong className="block text-xs font-extrabold text-foreground group-hover:text-purple-600 transition-colors">
+                  {t(language, "adminDashboard")}
+                </strong>
+                <span className="block text-[10px] text-muted-foreground">
+                  MSP disbursements, quotas & bottleneck AI
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-muted-foreground bg-muted px-2 py-1 rounded-lg">
+              <span>/admin</span>
+              <ExternalLink className="size-3" />
+            </div>
+          </a>
         </div>
       </div>
 

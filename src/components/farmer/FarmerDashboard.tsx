@@ -158,6 +158,8 @@ export function FarmerDashboard({
     user,
     setUser,
     activeBooking,
+    completedBooking,
+    rejectedBooking,
     centres,
     crops,
     language,
@@ -230,7 +232,7 @@ export function FarmerDashboard({
             {/* Center: Greeting & Date */}
             <div className="text-center">
               <p className="text-base font-extrabold text-white drop-shadow-sm leading-tight">
-                {t(language, "goodMorning")}, {user.name.split(" ")[0]}
+                {t(language, "goodMorning")}, {user?.name && user.name !== "Guest Farmer" ? user.name.split(" ")[0] : "Farmer"}
               </p>
               <p className="text-[11px] sm:text-xs text-white/80 font-medium leading-tight mt-0.5">
                 Friday, 10 Sep 2026
@@ -278,23 +280,35 @@ export function FarmerDashboard({
 
             {/* Metric 2: Your Token */}
             <div
-              onClick={() => onOpenBooking()}
+              onClick={() => {
+                if (!activeBooking && completedBooking) {
+                  onOpenPayments();
+                } else {
+                  onOpenBooking();
+                }
+              }}
               className="min-w-0 overflow-hidden rounded-2xl bg-black/40 backdrop-blur-md border border-white/15 p-2 sm:p-2.5 text-white shadow-md cursor-pointer hover:bg-black/50 transition-all flex flex-col justify-between"
-              title={activeBooking ? `Your active token #${userQueueNumber}` : t(language, "tapToGenerate")}
+              title={
+                activeBooking
+                  ? `Your active token #${userQueueNumber}`
+                  : completedBooking
+                  ? `Token #${completedBooking.queueNumber} completed! View advice.`
+                  : t(language, "tapToGenerate")
+              }
             >
               <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-white font-bold min-w-0">
                 <Sparkles className="size-3 shrink-0 text-amber-300" />
                 <span className="truncate">{t(language, "yourToken")}</span>
               </div>
               <p className="text-lg sm:text-xl font-black mt-1 text-white tracking-tight tabular-nums truncate leading-tight">
-                {userQueueNumber ? `#${userQueueNumber}` : "#47"}
+                {userQueueNumber ? `#${userQueueNumber}` : completedBooking ? `#${completedBooking.queueNumber}` : "—"}
               </p>
               {activeBooking ? (
                 farmersAhead === 0 && nowServing === userQueueNumber ? (
                   <p className="text-[9px] sm:text-[10px] text-amber-300 font-extrabold truncate mt-0.5 animate-pulse">
                     ⚡ {t(language, "servingNow") || "It's Your Turn!"}
                   </p>
-                ) : nowServing > userQueueNumber ? (
+                ) : userQueueNumber !== null && nowServing > userQueueNumber ? (
                   <p className="text-[9px] sm:text-[10px] text-emerald-300 font-bold truncate mt-0.5">
                     ✓ Done
                   </p>
@@ -303,9 +317,13 @@ export function FarmerDashboard({
                     {farmersAhead} {t(language, "farmersAhead")}
                   </p>
                 )
+              ) : completedBooking ? (
+                <p className="text-[9px] sm:text-[10px] text-emerald-300 font-bold truncate mt-0.5">
+                  ✓ Turn Done (Paid)
+                </p>
               ) : (
-                <p className="text-[9px] sm:text-[10px] text-emerald-400 font-bold truncate mt-0.5">
-                  7 {t(language, "farmersAhead")}
+                <p className="text-[9px] sm:text-[10px] text-emerald-300 font-semibold truncate mt-0.5">
+                  {user?.farmerId && user.farmerId !== "GUEST" ? "Tap to Book" : "Login to Book"}
                 </p>
               )}
             </div>
@@ -319,16 +337,20 @@ export function FarmerDashboard({
               <p className="text-lg sm:text-xl font-black mt-1 text-white tracking-tight tabular-nums truncate leading-tight">
                 {activeBooking ? (
                   nowServing === userQueueNumber ? "0m" :
-                  nowServing > userQueueNumber ? "0m" :
+                  userQueueNumber !== null && nowServing > userQueueNumber ? "0m" :
                   prediction.minutesLeft > 0 ? `~${prediction.minutesLeft}m` : "Ready"
-                ) : "~42m"}
+                ) : completedBooking ? (
+                  "0m"
+                ) : "—"}
               </p>
               <p className="text-[9px] sm:text-[10px] text-white/70 truncate mt-0.5">
                 {activeBooking ? (
                   nowServing === userQueueNumber ? "At Bay 1 Now" :
-                  nowServing > userQueueNumber ? "Completed" :
+                  userQueueNumber !== null && nowServing > userQueueNumber ? "Completed" :
                   prediction.timeStr || "05:16"
-                ) : (prediction.timeStr || "05:16")}
+                ) : completedBooking ? (
+                  "Completed at Bay 1"
+                ) : "No active booking"}
               </p>
             </div>
           </div>
@@ -351,6 +373,15 @@ export function FarmerDashboard({
               >
                 <XCircle className="size-4 shrink-0" />
                 <span className="truncate">{t(language, "cancelSlot")}</span>
+              </button>
+            ) : completedBooking ? (
+              <button
+                type="button"
+                onClick={() => onOpenBooking()}
+                className="flex items-center justify-center gap-1.5 rounded-2xl border border-white/20 bg-black/45 backdrop-blur-md px-3 py-3 text-xs sm:text-sm font-bold text-white hover:bg-black/60 active:scale-95 transition-all shadow-md min-w-0"
+              >
+                <Plus className="size-4 shrink-0" />
+                <span className="truncate">Book Next Lot</span>
               </button>
             ) : (
               <button
@@ -428,6 +459,82 @@ export function FarmerDashboard({
           >
             Track Queue
           </button>
+        </div>
+      )}
+
+      {/* Turn Completed & Verified Banner (Post-turn celebratory state) */}
+      {!activeBooking && completedBooking && (
+        <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-500 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 p-4 text-white shadow-lg animate-in fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3">
+              <span className="flex size-11 items-center justify-center rounded-2xl bg-white text-emerald-800 font-extrabold text-xl shadow-md shrink-0">
+                🎉
+              </span>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-display text-sm sm:text-base font-extrabold text-white">
+                    TURN COMPLETED &amp; VERIFIED! (TOKEN #{completedBooking.queueNumber})
+                  </h3>
+                  <span className="rounded-full bg-emerald-400/20 px-2 py-0.5 text-[10px] font-bold text-emerald-100 border border-emerald-300/30">
+                    Grade A Approved
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-100 mt-0.5">
+                  Your lot of <strong>{completedBooking.crop} ({completedBooking.quantityKg} kg)</strong> was verified at Weighing Bay 1. MSP payment advice is ready.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={onOpenPayments}
+                className="rounded-xl bg-white px-3.5 py-2 text-xs font-black text-emerald-900 shadow-md hover:bg-emerald-50 active:scale-95 transition-all flex items-center gap-1.5"
+              >
+                <IndianRupee className="size-3.5" /> View Payment Advice
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenBooking()}
+                className="rounded-xl border border-white/30 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20 active:scale-95 transition-all"
+              >
+                + Book Next Lot
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lot Rejected Banner (If staff rejected the lot) */}
+      {!activeBooking && !completedBooking && rejectedBooking && (
+        <div className="relative overflow-hidden rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-foreground shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-rose-500/20 text-rose-600">
+              <XCircle className="size-5" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+                  Procurement Lot Not Accepted — Token #{rejectedBooking.queueNumber}
+                </h4>
+                <span className="text-[10px] font-medium text-muted-foreground">{rejectedBooking.date}</span>
+              </div>
+              <p className="mt-1 text-xs text-foreground/90 font-medium">
+                Reason: {rejectedBooking.cancellationReason || "Moisture content or quality parameters exceeded allowable threshold."}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                You can rectify the lot (e.g. sun drying or cleaning) and book a new appointment.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => onOpenBooking()}
+                  className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition-colors"
+                >
+                  Book New Slot
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -878,7 +985,7 @@ export function FarmerDashboard({
                   setUser((prev) => ({
                     ...prev,
                     crops: tempSelectedCrops,
-                    primaryCrop: cropNames || prev.primaryCrop,
+                    primaryCrop: cropNames || prev.primaryCrop || "Paddy",
                   }));
                   addNotification(
                     language === "ml" ? "വിളകൾ പുതുക്കി" : "Crops Updated",

@@ -21,9 +21,20 @@ interface LiveQueueViewProps {
 }
 
 export function LiveQueueView({ onBack, onOpenReschedule, onOpenDirections }: LiveQueueViewProps) {
-  const { user, activeBooking, centres, queue, nowServing, language, predictWaitingTime, cancelBooking } = useKisanQueue();
+  const {
+    user,
+    activeBooking,
+    completedBooking,
+    rejectedBooking,
+    centres,
+    queue,
+    nowServing,
+    language,
+    predictWaitingTime,
+    cancelBooking,
+  } = useKisanQueue();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const currentCentre = centres.find((c) => c.id === activeBooking?.centreId) || centres[0];
+  const currentCentre = (centres.find((c) => c.id === activeBooking?.centreId) || centres[0])!;
   const userQueueNumber = activeBooking ? activeBooking.queueNumber : null;
   const prediction = activeBooking
     ? predictWaitingTime(currentCentre.id, activeBooking.queueNumber)
@@ -88,8 +99,56 @@ export function LiveQueueView({ onBack, onOpenReschedule, onOpenDirections }: Li
         </div>
       )}
 
-      {/* No Active Token Notice */}
-      {!activeBooking && (
+      {/* Turn Completed Notice */}
+      {!activeBooking && completedBooking && (
+        <div className="rounded-2xl border-2 border-emerald-500 bg-emerald-50/90 dark:bg-emerald-950/40 p-4 text-center space-y-2.5 shadow-md animate-in fade-in">
+          <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-600 text-white mx-auto text-xl shadow-sm">
+            🎉
+          </div>
+          <h3 className="font-display font-extrabold text-base text-emerald-900 dark:text-emerald-200">
+            Procurement Turn Completed! (Token #{completedBooking.queueNumber})
+          </h3>
+          <p className="text-xs text-emerald-800/90 dark:text-emerald-300 max-w-md mx-auto">
+            Your lot of <strong>{completedBooking.crop} ({completedBooking.quantityKg} kg)</strong> has been weighed, inspected, and verified at Weighing Bay 1. MSP Payment Advice has been generated.
+          </p>
+          <div className="flex justify-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onOpenReschedule}
+              className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-800 transition-colors"
+            >
+              + Book Next Delivery Lot
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Lot Rejected Notice */}
+      {!activeBooking && !completedBooking && rejectedBooking && (
+        <div className="rounded-2xl border-2 border-rose-500/40 bg-rose-50/90 dark:bg-rose-950/40 p-4 text-center space-y-2.5 shadow-md animate-in fade-in">
+          <div className="flex size-11 items-center justify-center rounded-2xl bg-rose-600 text-white mx-auto text-lg shadow-sm">
+            <X className="size-6 stroke-[3]" />
+          </div>
+          <h3 className="font-display font-extrabold text-base text-rose-900 dark:text-rose-200">
+            Token #{rejectedBooking.queueNumber} Was Not Accepted
+          </h3>
+          <p className="text-xs text-rose-800/90 dark:text-rose-300 max-w-md mx-auto">
+            Reason: {rejectedBooking.cancellationReason || "Moisture content or quality parameters exceeded allowable MSP threshold."}
+          </p>
+          <div className="flex justify-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onOpenReschedule}
+              className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 transition-colors"
+            >
+              Book New Appointment
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* No Active Token Notice (Only when neither active, completed, nor rejected exists) */}
+      {!activeBooking && !completedBooking && !rejectedBooking && (
         <div className="rounded-2xl border-2 border-primary/30 bg-primary/10 p-4 text-center space-y-2.5 shadow-sm">
           <Sparkles className="size-6 text-primary mx-auto" />
           <h3 className="font-bold text-sm text-foreground">{t(language, "noActiveTokenNotice")}</h3>
@@ -127,15 +186,17 @@ export function LiveQueueView({ onBack, onOpenReschedule, onOpenDirections }: Li
                 {t(language, "yourToken")}
               </span>
               <strong className="font-display text-5xl font-extrabold text-white">
-                {userQueueNumber ? `#${userQueueNumber}` : "—"}
+                {userQueueNumber ? `#${userQueueNumber}` : completedBooking ? `#${completedBooking.queueNumber}` : "—"}
               </strong>
               <small className="block text-[10px] text-secondary mt-0.5 font-semibold">
                 {activeBooking
                   ? (farmersAhead === 0 && nowServing === userQueueNumber
                       ? "⚡ AT WEIGHING BAY"
-                      : nowServing > userQueueNumber
+                      : userQueueNumber !== null && nowServing > userQueueNumber
                       ? "✓ Completed"
                       : `${farmersAhead} ${t(language, "farmersAhead")}`)
+                  : completedBooking
+                  ? "✓ Turn Done (Paid)"
                   : t(language, "noToken")}
               </small>
             </div>
@@ -146,7 +207,9 @@ export function LiveQueueView({ onBack, onOpenReschedule, onOpenDirections }: Li
               <span className="text-[10px] text-primary-foreground/60 block">{t(language, "queueGap")}</span>
               <strong>
                 {activeBooking
-                  ? (nowServing === userQueueNumber ? "Your Turn" : nowServing > userQueueNumber ? "Passed" : `${farmersAhead} ahead`)
+                  ? (nowServing === userQueueNumber ? "Your Turn" : userQueueNumber !== null && nowServing > userQueueNumber ? "Passed" : `${farmersAhead} ahead`)
+                  : completedBooking
+                  ? "Completed"
                   : "—"}
               </strong>
             </div>
@@ -154,7 +217,9 @@ export function LiveQueueView({ onBack, onOpenReschedule, onOpenDirections }: Li
               <span className="text-[10px] text-primary-foreground/60 block">{t(language, "waitTime")}</span>
               <strong className={currentCentre.activeDelayMinutes > 0 ? "text-secondary" : ""}>
                 {activeBooking
-                  ? (nowServing === userQueueNumber || nowServing > userQueueNumber ? "0 mins" : `~${prediction.minutesLeft} mins`)
+                  ? (userQueueNumber !== null && (nowServing === userQueueNumber || nowServing > userQueueNumber) ? "0 mins" : `~${prediction.minutesLeft} mins`)
+                  : completedBooking
+                  ? "0 mins"
                   : "Ready"}
               </strong>
             </div>
@@ -162,7 +227,9 @@ export function LiveQueueView({ onBack, onOpenReschedule, onOpenDirections }: Li
               <span className="text-[10px] text-primary-foreground/60 block">{t(language, "expectedCall")}</span>
               <strong className="text-secondary">
                 {activeBooking
-                  ? (nowServing === userQueueNumber ? "Now" : nowServing > userQueueNumber ? "Done" : prediction.timeStr)
+                  ? (nowServing === userQueueNumber ? "Now" : userQueueNumber !== null && nowServing > userQueueNumber ? "Done" : prediction.timeStr)
+                  : completedBooking
+                  ? "Done"
                   : "Immediate"}
               </strong>
             </div>
@@ -182,7 +249,7 @@ export function LiveQueueView({ onBack, onOpenReschedule, onOpenDirections }: Li
         <div className="space-y-2">
           {visiblePipeline.map((item) => {
             const isServing = item.queueNumber === nowServing;
-            const isUser = item.queueNumber === userQueueNumber;
+            const isUser = item.queueNumber === (userQueueNumber ?? completedBooking?.queueNumber);
             const isCompleted = item.queueNumber < nowServing;
 
             return (

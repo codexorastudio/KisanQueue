@@ -22,7 +22,7 @@ export function SlotBookingModal({
   const recommendedCentre = getRecommendedCentre();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
-  const [selectedCrop, setSelectedCrop] = useState(crops[0].name);
+  const [selectedCrop, setSelectedCrop] = useState(crops[0]?.name || "Paddy");
   const [quantity, setQuantity] = useState(420);
   const [selectedCentreId, setSelectedCentreId] = useState(recommendedCentre.id);
   const [selectedDate, setSelectedDate] = useState("10 Sep 2026");
@@ -82,8 +82,8 @@ export function SlotBookingModal({
 
   if (!isOpen) return null;
 
-  const currentCrop = crops.find((c) => c.name === selectedCrop) || crops[0];
-  const currentCentre = centres.find((c) => c.id === selectedCentreId) || centres[0];
+  const currentCrop = (crops.find((c) => c.name === selectedCrop) || crops[0])!;
+  const currentCentre = (centres.find((c) => c.id === selectedCentreId) || centres[0])!;
   const totalPayout = quantity * currentCrop.mspPerKg;
 
   const handleConfirm = () => {

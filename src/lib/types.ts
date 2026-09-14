@@ -7,15 +7,15 @@ export interface User {
   name: string;
   role: Role;
   mobile: string;
-  farmerId?: string;
-  staffId?: string;
-  village?: string;
-  district?: string;
-  state?: string;
-  primaryCrop?: string;
-  crops?: string[];
-  bankAccount?: string;
-  ifsc?: string;
+  farmerId?: string | undefined;
+  staffId?: string | undefined;
+  village?: string | undefined;
+  district?: string | undefined;
+  state?: string | undefined;
+  primaryCrop?: string | undefined;
+  crops?: string[] | undefined;
+  bankAccount?: string | undefined;
+  ifsc?: string | undefined;
 }
 
 export interface Crop {
@@ -24,6 +24,7 @@ export interface Crop {
   localName: {
     ml: string;
     hi: string;
+    [key: string]: string;
   };
   mspPerKg: number;
   icon: string;
@@ -43,6 +44,7 @@ export interface ProcurementCentre {
   name: string;
   district: string;
   location: string;
+  address?: string | undefined;
   distanceKm: number;
   workingHours: string;
   dailyCapacityKg: number;
@@ -82,6 +84,7 @@ export interface Booking {
   alternatePhone?: string | undefined;
   qualityGrade?: string | undefined;
   languageUsed?: "ml" | "en" | undefined;
+  cancellationReason?: string | undefined;
 }
 
 export interface QueueItem {
@@ -90,7 +93,7 @@ export interface QueueItem {
   farmerId: string;
   crop: string;
   quantityKg: number;
-  status: "waiting" | "serving" | "verified" | "completed" | "skipped";
+  status: "waiting" | "serving" | "verified" | "completed" | "skipped" | "rejected";
   isCurrentFarmer?: boolean | undefined;
   bookingSource?: "ivr" | "web" | "counter" | undefined;
 }
@@ -100,7 +103,7 @@ export interface NotificationItem {
   title: string;
   message: string;
   timestamp: string;
-  type: "booking" | "queue" | "delay" | "procurement" | "payment" | "sms" | "info";
+  type: "booking" | "queue" | "delay" | "procurement" | "payment" | "sms" | "info" | "success";
   read: boolean;
 }
 

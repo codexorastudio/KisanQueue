@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useKisanQueue } from "@/lib/store";
+import { fetchUserByMobile, fetchUserByFarmerId, createDbUser } from "@/lib/db";
 import { X, CheckCircle2, Phone, ShieldCheck, KeyRound, UserCheck, ArrowRight } from "lucide-react";
 
 export function AuthModal({
@@ -12,13 +13,14 @@ export function AuthModal({
   onClose: () => void;
 }) {
   const isModalOpen = isOpen ?? open ?? false;
-  const { setRole, addNotification, setIsLoggedIn } = useKisanQueue();
+  const { setRole, addNotification, setIsLoggedIn, setUser } = useKisanQueue();
   const [authMode, setAuthMode] = useState<"otp" | "farmerId" | "staff" | "register">("otp");
-  const [mobile, setMobile] = useState("8281251299");
+  const [mobile, setMobile] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpValue, setOtpValue] = useState("");
-  const [farmerIdInput, setFarmerIdInput] = useState("KL-KTM-26047");
+  const [farmerIdInput, setFarmerIdInput] = useState("");
   const [staffPassword, setStaffPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Registration state
   const [regName, setRegName] = useState("");
@@ -28,27 +30,81 @@ export function AuthModal({
 
   if (!isModalOpen) return null;
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     setOtpSent(true);
     setOtpValue("2604");
-    addNotification("OTP Sent 📲", "Your 4-digit verification code is 2604 (Auto-filled for demo).", "sms");
+    try {
+      const userMatch = await fetchUserByMobile(mobile);
+      if (userMatch) {
+        addNotification("OTP Sent 📲", `Welcome back ${userMatch.name}! Verification code is 2604.`, "sms");
+      } else {
+        addNotification("OTP Sent 📲", "Your 4-digit verification code is 2604 (Auto-filled for demo).", "sms");
+      }
+    } catch {
+      addNotification("OTP Sent 📲", "Your 4-digit verification code is 2604 (Auto-filled for demo).", "sms");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setRole("farmer");
-    setIsLoggedIn(true);
-    addNotification("Login Successful 👨‍🌾", "Welcome back Arun Kumar (Farmer ID: KL-KTM-26047).", "booking");
-    onClose();
+    setIsLoading(true);
+    try {
+      const userMatch = await fetchUserByMobile(mobile);
+      if (userMatch) {
+        setUser(userMatch);
+        addNotification("Login Successful 👨‍🌾", `Welcome back ${userMatch.name} (Farmer ID: ${userMatch.farmerId}).`, "booking");
+      } else {
+        const randomSuffix = Math.floor(10000 + Math.random() * 90000);
+        const newUser = await createDbUser({
+          name: "Farmer",
+          mobile,
+          farmerId: `KL-KTM-${randomSuffix}`,
+          village: "Kumarakom",
+          district: "Kottayam",
+          role: "farmer",
+        });
+        if (newUser) setUser(newUser);
+        addNotification("Farmer Registered 🌾", `Welcome to KisanQueue! Your ID is KL-KTM-${randomSuffix}.`, "booking");
+      }
+      setRole("farmer");
+      setIsLoggedIn(true);
+      onClose();
+    } catch (err) {
+      console.error(err);
+      setRole("farmer");
+      setIsLoggedIn(true);
+      onClose();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleFarmerIdLogin = (e: React.FormEvent) => {
+  const handleFarmerIdLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setRole("farmer");
-    setIsLoggedIn(true);
-    addNotification("Farmer Authenticated 🌾", `Logged in with verified Kerala Farmer ID: ${farmerIdInput}.`, "booking");
-    onClose();
+    setIsLoading(true);
+    try {
+      const userMatch = await fetchUserByFarmerId(farmerIdInput);
+      if (userMatch) {
+        setUser(userMatch);
+        addNotification("Farmer Authenticated 🌾", `Welcome back ${userMatch.name} (${userMatch.farmerId}).`, "booking");
+      } else {
+        addNotification("Farmer Authenticated 🌾", `Logged in with verified Kerala Farmer ID: ${farmerIdInput}.`, "booking");
+      }
+      setRole("farmer");
+      setIsLoggedIn(true);
+      onClose();
+    } catch (err) {
+      console.error(err);
+      setRole("farmer");
+      setIsLoggedIn(true);
+      onClose();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleStaffLogin = (asAdmin = false) => {
@@ -62,15 +118,40 @@ export function AuthModal({
     onClose();
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setRole("farmer");
-    addNotification(
-      "Farmer Registration Completed 🎉",
-      `Welcome ${regName || "Farmer"}! Your verified Farmer ID is KL-KTM-26055. Assigned to ${regDistrict} cluster.`,
-      "booking"
-    );
-    onClose();
+    setIsLoading(true);
+    try {
+      const randomSuffix = Math.floor(10000 + Math.random() * 90000);
+      const farmerId = `KL-${regDistrict.slice(0, 3).toUpperCase()}-${randomSuffix}`;
+      const newUser = await createDbUser({
+        name: regName || "Farmer",
+        mobile,
+        farmerId,
+        village: regVillage || "Kumarakom",
+        district: regDistrict,
+        primaryCrop: regCrop,
+        crops: [regCrop.toLowerCase().includes("paddy") ? "paddy" : "coconut"],
+        role: "farmer",
+      });
+
+      if (newUser) {
+        setUser(newUser);
+      }
+      setRole("farmer");
+      setIsLoggedIn(true);
+      addNotification(
+        "Farmer Registration Completed 🎉",
+        `Welcome ${regName || "Farmer"}! Your verified Farmer ID is ${farmerId}. Assigned to ${regDistrict} cluster.`,
+        "booking"
+      );
+      onClose();
+    } catch (err) {
+      console.error(err);
+      onClose();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

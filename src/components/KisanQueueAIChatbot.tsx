@@ -213,13 +213,13 @@ export function KisanQueueAIChatbot({ isSeniorMode = false }: KisanQueueAIChatbo
       }
 
       speechIndexRef.current = idx;
-      const chunkText = speechQueueRef.current[idx];
+      const chunkText = speechQueueRef.current[idx] || "";
       const directGoogleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${encodeURIComponent(
         targetLang
       )}&client=tw-ob&q=${encodeURIComponent(chunkText)}`;
 
       const audio = document.createElement("audio");
-      audio.referrerPolicy = "no-referrer";
+      audio.setAttribute("referrerpolicy", "no-referrer");
       audio.src = directGoogleUrl;
       audioRef.current = audio;
 

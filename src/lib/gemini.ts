@@ -3,10 +3,20 @@ const DEFAULT_KEY_B64 =
   "QVEuQWI4Uk42TFAyN0xXeXYybnp5VVplYW1WNUJZdXVMTm56cmRZLW03M3k2ZHpnME5IMmc=";
 
 function resolveGeminiKey(): string {
-  const envKey =
-    (typeof process !== "undefined" && (process.env?.GEMINI_API_KEY || process.env?.VITE_GEMINI_API_KEY)) ||
-    (typeof import.meta !== "undefined" && (import.meta as any)?.env?.VITE_GEMINI_API_KEY);
-  if (envKey) return envKey;
+  try {
+    if (typeof process !== "undefined" && process.env) {
+      const procKey = process.env["GEMINI_API_KEY"] || process.env["VITE_GEMINI_API_KEY"];
+      if (procKey && typeof procKey === "string" && procKey.trim()) return procKey.trim();
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const viteKey = import.meta.env["VITE_GEMINI_API_KEY"];
+    if (viteKey && typeof viteKey === "string" && viteKey.trim()) return viteKey.trim();
+  } catch {
+    // ignore
+  }
   try {
     if (typeof atob === "function") return atob(DEFAULT_KEY_B64);
     if (typeof Buffer !== "undefined") return Buffer.from(DEFAULT_KEY_B64, "base64").toString("utf-8");
@@ -71,12 +81,12 @@ export async function generateKisanChatResponse(
   userPrompt: string,
   history: ChatMessage[] = [],
   contextData?: {
-    farmerName?: string;
-    activeToken?: number;
-    crop?: string;
-    centreName?: string;
-    language?: string;
-  }
+    farmerName?: string | undefined;
+    activeToken?: number | undefined;
+    crop?: string | undefined;
+    centreName?: string | undefined;
+    language?: string | undefined;
+  } | undefined
 ): Promise<string> {
   const modelsToTry = [PRIMARY_MODEL, ...FALLBACK_MODELS];
 

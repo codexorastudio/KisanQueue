@@ -12,6 +12,18 @@ import {
   DemandForecast,
   BookingStatus,
 } from "./types";
+import {
+  fetchProcurementCentresFromDb,
+  fetchCropsFromDb,
+  fetchBookingsFromDb,
+  insertDbBooking,
+  updateDbBookingStatus,
+  fetchQueueItemsFromDb,
+  updateDbQueueStatus,
+  updateDbCentreDelay,
+  fetchNotificationsFromDb,
+  subscribeToQueueChanges,
+} from "./db";
 
 interface KisanQueueContextType {
   role: Role;
@@ -32,6 +44,8 @@ interface KisanQueueContextType {
   crops: Crop[];
   bookings: Booking[];
   activeBooking: Booking | null;
+  completedBooking: Booking | null;
+  rejectedBooking: Booking | null;
   queue: QueueItem[];
   nowServing: number;
   notifications: NotificationItem[];
@@ -66,6 +80,7 @@ interface KisanQueueContextType {
   markFarmerArrived: (queueNumber: number) => void;
   verifyFarmer: (queueNumber: number) => void;
   completeProcurement: (queueNumber: number, weightKg?: number) => void;
+  rejectFarmer: (queueNumber: number, reason?: string) => void;
   reportDelay: (centreId: string, minutes: number, reason: string) => void;
   clearDelay: (centreId: string) => void;
 
@@ -245,7 +260,7 @@ const INITIAL_QUEUE: QueueItem[] = [
   { queueNumber: 44, farmerName: "Sebastian Luke", farmerId: "KL-KTM-29001", crop: "Paddy", quantityKg: 720, status: "waiting" },
   { queueNumber: 45, farmerName: "V. A. Jacob", farmerId: "KL-KTM-15672", crop: "Coconut", quantityKg: 250, status: "waiting" },
   { queueNumber: 46, farmerName: "Anil Kumar B.", farmerId: "KL-KTM-22319", crop: "Pepper", quantityKg: 90, status: "waiting" },
-  { queueNumber: 47, farmerName: "Arun Kumar (You)", farmerId: "KL-KTM-26047", crop: "Rice · 420 kg", quantityKg: 420, status: "waiting", isCurrentFarmer: true },
+  { queueNumber: 47, farmerName: "K. N. Raghavan", farmerId: "KL-KTM-26047", crop: "Rice · 420 kg", quantityKg: 420, status: "waiting" },
   { queueNumber: 48, farmerName: "Devasia V.", farmerId: "KL-KTM-29401", crop: "Paddy", quantityKg: 380, status: "waiting" },
   { queueNumber: 49, farmerName: "Manoj Chacko", farmerId: "KL-KTM-31002", crop: "Rubber", quantityKg: 200, status: "waiting" },
 ];
@@ -357,6 +372,21 @@ const INITIAL_FORECASTS: DemandForecast[] = [
   },
 ];
 
+export const DEFAULT_GUEST_USER: User = {
+  id: "guest-user",
+  name: "Guest Farmer",
+  role: "farmer",
+  mobile: "",
+  farmerId: "GUEST",
+  village: "",
+  district: "Kottayam",
+  state: "Kerala",
+  primaryCrop: "Paddy",
+  crops: ["paddy"],
+  bankAccount: "Not Linked",
+  ifsc: "",
+};
+
 export function KisanQueueProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<Role>("farmer");
   const [language, setLanguage] = useState<Language>("en");
@@ -364,16 +394,12 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
   const [highContrast, setHighContrast] = useState(false);
 
   // Authentication & Session Persistence
-  const [isLoggedIn, setIsLoggedInState] = useState<boolean>(false);
-
-  useEffect(() => {
+  const [isLoggedIn, setIsLoggedInState] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("kisanqueue_logged_in") === "true";
-      if (stored) {
-        setIsLoggedInState(true);
-      }
+      return localStorage.getItem("kisanqueue_logged_in") === "true";
     }
-  }, []);
+    return false;
+  });
 
   const setIsLoggedIn = (val: boolean) => {
     setIsLoggedInState(val);
@@ -386,24 +412,40 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const logout = () => {
-    setIsLoggedIn(false);
+  const [user, setUserState] = useState<User>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("kisanqueue_user");
+        const isLoggedInStored = localStorage.getItem("kisanqueue_logged_in") === "true";
+        if (stored && isLoggedInStored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.farmerId && parsed.farmerId !== "GUEST") {
+            return parsed;
+          }
+        }
+      } catch {}
+    }
+    return DEFAULT_GUEST_USER;
+  });
+
+  const setUser = (u: User | ((prev: User) => User)) => {
+    setUserState((prev) => {
+      const next = typeof u === "function" ? u(prev) : u;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("kisanqueue_user", JSON.stringify(next));
+      }
+      return next;
+    });
   };
 
-  const [user, setUser] = useState<User>({
-    id: "usr-01",
-    name: "Arun Kumar",
-    role: "farmer",
-    mobile: "+91 82812 51299",
-    farmerId: "KL-KTM-26047",
-    village: "Kumarakom",
-    district: "Kottayam",
-    state: "Kerala",
-    primaryCrop: "Paddy & Coconut",
-    crops: ["paddy", "coconut"],
-    bankAccount: "SBI A/C **** 4891",
-    ifsc: "SBIN0070114",
-  });
+  const logout = () => {
+    setIsLoggedInState(false);
+    setUserState(DEFAULT_GUEST_USER);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("kisanqueue_user");
+      localStorage.removeItem("kisanqueue_logged_in");
+    }
+  };
 
   // Unique instance ID for this tab/window to prevent echo loops
   const tabInstanceId = useMemo(() => {
@@ -411,7 +453,7 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const [centres, setCentresState] = useState<ProcurementCentre[]>(INITIAL_CENTRES);
-  const [crops] = useState<Crop[]>(INITIAL_CROPS);
+  const [crops, setCropsState] = useState<Crop[]>(INITIAL_CROPS);
 
   const [bookings, setBookingsState] = useState<Booking[]>(INITIAL_BOOKINGS);
   const [queue, setQueueState] = useState<QueueItem[]>(INITIAL_QUEUE);
@@ -569,6 +611,70 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
     };
   }, [tabInstanceId]);
 
+  // Load data from Supabase and subscribe to Realtime changes
+  useEffect(() => {
+    let unsubscribeQueue: (() => void) | null = null;
+
+    const loadSupabaseData = async () => {
+      try {
+        const [dbCentres, dbCrops, dbQueue] = await Promise.all([
+          fetchProcurementCentresFromDb(),
+          fetchCropsFromDb(),
+          fetchQueueItemsFromDb("centre-ktm"),
+        ]);
+
+        if (dbCentres && dbCentres.length > 0) {
+          setCentresState(dbCentres);
+        }
+        if (dbCrops && dbCrops.length > 0) {
+          setCropsState(dbCrops);
+        }
+        if (dbQueue && dbQueue.length > 0) {
+          setQueueState(dbQueue);
+        }
+
+        if (user.farmerId || user.mobile) {
+          const dbBookings = await fetchBookingsFromDb(user.farmerId, user.mobile);
+          if (dbBookings && dbBookings.length > 0) {
+            setBookingsState(dbBookings);
+          }
+        }
+
+        if (user.id) {
+          const dbNotifs = await fetchNotificationsFromDb(user.id);
+          if (dbNotifs && dbNotifs.length > 0) {
+            setNotificationsState(dbNotifs);
+          }
+        }
+      } catch (err) {
+        console.warn("Supabase initial sync:", err);
+      }
+    };
+
+    loadSupabaseData();
+
+    unsubscribeQueue = subscribeToQueueChanges(
+      async () => {
+        const updatedQueue = await fetchQueueItemsFromDb("centre-ktm");
+        if (updatedQueue && updatedQueue.length > 0) {
+          setQueueState(updatedQueue);
+        }
+      },
+      async () => {
+        if (user.farmerId || user.mobile) {
+          const updatedBookings = await fetchBookingsFromDb(user.farmerId, user.mobile);
+          if (updatedBookings && updatedBookings.length > 0) {
+            setBookingsState(updatedBookings);
+          }
+        }
+      }
+    );
+
+    return () => {
+      if (unsubscribeQueue) unsubscribeQueue();
+    };
+  }, [user.farmerId, user.mobile, user.id]);
+
   // Synchronized state setters
   const setNowServing = (val: number | ((prev: number) => number)) => {
     setNowServingState((prev) => {
@@ -627,12 +733,57 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
   };
 
   const activeBooking = useMemo(() => {
-    return bookings.find((b) => b.status !== "completed" && b.status !== "cancelled") ?? null;
-  }, [bookings]);
+    if (!isLoggedIn || !user || !user.farmerId || user.farmerId === "GUEST") return null;
+    return (
+      bookings.find(
+        (b) =>
+          b.status !== "completed" &&
+          b.status !== "cancelled" &&
+          (b.farmerId === user.farmerId || (user.mobile && b.farmerMobile === user.mobile))
+      ) ?? null
+    );
+  }, [bookings, isLoggedIn, user]);
+
+  const completedBooking = useMemo(() => {
+    if (!isLoggedIn || !user || !user.farmerId || user.farmerId === "GUEST") return null;
+    return (
+      bookings.find(
+        (b) =>
+          b.status === "completed" &&
+          (b.farmerId === user.farmerId || (user.mobile && b.farmerMobile === user.mobile))
+      ) ?? null
+    );
+  }, [bookings, isLoggedIn, user]);
+
+  const rejectedBooking = useMemo(() => {
+    if (!isLoggedIn || !user || !user.farmerId || user.farmerId === "GUEST") return null;
+    return (
+      bookings.find(
+        (b) =>
+          b.status === "cancelled" &&
+          (b.farmerId === user.farmerId || (user.mobile && b.farmerMobile === user.mobile))
+      ) ?? null
+    );
+  }, [bookings, isLoggedIn, user]);
+
+  const DEFAULT_CENTRE: ProcurementCentre = INITIAL_CENTRES[0]!;
+  const DEFAULT_CROP: Crop = INITIAL_CROPS[0]!;
+
+  const getCentre = (id?: string): ProcurementCentre => {
+    return centres.find((c) => c.id === id) ?? centres[0] ?? DEFAULT_CENTRE;
+  };
+
+  const getCrop = (name: string): Crop => {
+    return (
+      crops.find((c) => c.name.toLowerCase().includes(name.toLowerCase())) ??
+      crops[0] ??
+      DEFAULT_CROP
+    );
+  };
 
   // Smart Engine: Waiting-time prediction
   const predictWaitingTime = (centreId: string, userQueueNumber: number) => {
-    const centre = centres.find((c) => c.id === centreId) ?? centres[0] ?? INITIAL_CENTRES[0];
+    const centre = getCentre(centreId);
     const farmersAhead = Math.max(0, userQueueNumber - nowServing);
     const rawMinutes = farmersAhead * centre.avgProcessingMinutes;
     const totalMinutes = rawMinutes + (centre.activeDelayMinutes || 0);
@@ -648,8 +799,8 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
   };
 
   // Smart Engine: Centre Recommendation algorithm (Multi-factor ranking)
-  const getRecommendedCentre = (cropId?: string): ProcurementCentre => {
-    let bestCentre: ProcurementCentre = centres[0] || INITIAL_CENTRES[0];
+  const getRecommendedCentre = (_cropId?: string): ProcurementCentre => {
+    let bestCentre: ProcurementCentre = centres[0] ?? DEFAULT_CENTRE;
     let bestScore = Infinity;
 
     centres.forEach((centre) => {
@@ -680,17 +831,22 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
       languageUsed?: "ml" | "en";
     }
   ): Booking => {
-    const centre = centres.find((c) => c.id === centreId) || centres[0] || INITIAL_CENTRES[0];
+    const centre = getCentre(centreId);
     const newQueueNum = nowServing + queue.length + 1;
-    const cropObj = crops.find((c) => c.name.toLowerCase().includes(cropName.toLowerCase())) || crops[0] || INITIAL_CROPS[0];
+    const cropObj = getCrop(cropName);
 
-    const farmerMobile = options?.farmerMobile || user.mobile;
-    const farmerName = options?.farmerName || user.name;
+    const finalFarmerId =
+      user.farmerId && user.farmerId !== "GUEST"
+        ? user.farmerId
+        : `KL-KTM-${Math.floor(10000 + Math.random() * 90000)}`;
+    const farmerMobile = options?.farmerMobile || user.mobile || "+91 94470 00000";
+    const farmerName =
+      options?.farmerName || (user.name && user.name !== "Guest Farmer" ? user.name : "Farmer");
     const bookingSource = options?.bookingSource || "web";
 
     const newBooking: Booking = {
       id: `KQ-${Math.floor(10000 + Math.random() * 90000)}`,
-      farmerId: user.farmerId || "KL-KTM-26047",
+      farmerId: finalFarmerId,
       farmerName,
       farmerMobile,
       centreId: centre.id,
@@ -724,13 +880,13 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
     );
     setCentresState(nextCentres);
 
-    // Add to queue and ensure newest token is current farmer
+    // Add to queue and ensure newest token is marked for current farmer
     const nextQueue: QueueItem[] = [
       ...queue.map((item) => (item.isCurrentFarmer ? { ...item, isCurrentFarmer: false } : item)),
       {
         queueNumber: newQueueNum,
-        farmerName: `${farmerName} (You)`,
-        farmerId: user.farmerId || "KL-KTM-26047",
+        farmerName,
+        farmerId: finalFarmerId,
         crop: cropName,
         quantityKg,
         status: "waiting",
@@ -759,13 +915,18 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
       notifications: nextNotifications,
     });
 
+    // Persist to Supabase asynchronously
+    insertDbBooking(newBooking, user.id).catch((e) =>
+      console.warn("Supabase booking insert error:", e)
+    );
+
     return newBooking;
   };
 
   const rescheduleBooking = (bookingId: string, newDate: string, newSlotTime: string, newCentreId?: string) => {
     const nextBookings = bookings.map((b) => {
       if (b.id === bookingId) {
-        const centre = newCentreId ? centres.find((c) => c.id === newCentreId) || centres[0] : centres.find((c) => c.id === b.centreId) || centres[0];
+        const centre = getCentre(newCentreId || b.centreId);
         return {
           ...b,
           date: newDate,
@@ -819,6 +980,10 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
       centres: nextCentres,
       notifications: nextNotifications,
     });
+
+    updateDbBookingStatus(bookingId, "cancelled").catch((e) =>
+      console.warn("Supabase cancel booking error:", e)
+    );
   };
 
   // Staff Queue Actions
@@ -836,6 +1001,10 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
       return item;
     });
     setQueueState(nextQueue);
+
+    updateDbQueueStatus(nextToken, "serving", "centre-ktm").catch((e) =>
+      console.warn("Supabase queue status update error:", e)
+    );
 
     // Decrement current queue length on Kottayam centre (default staff centre)
     const nextCentres = centres.map((c, idx) =>
@@ -889,17 +1058,24 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
     const nextBookings = bookings.map((b) => (b.queueNumber === queueNumber ? { ...b, status: "arrived" as const, currentStepIndex: 1 } : b));
     setBookings(nextBookings);
     addNotification("Farmer Arrival Verified", `Token #${queueNumber} checked in at procurement yard gate.`, "queue");
+    updateDbQueueStatus(queueNumber, "waiting", "centre-ktm").catch((e) =>
+      console.warn("Supabase arrival error:", e)
+    );
   };
 
   const verifyFarmer = (queueNumber: number) => {
     const nextBookings = bookings.map((b) => (b.queueNumber === queueNumber ? { ...b, status: "verified" as const, currentStepIndex: 2 } : b));
     setBookings(nextBookings);
     addNotification("Moisture & Quality Passed ✓", `Token #${queueNumber} verification completed. Approved for weighing.`, "procurement");
+    updateDbQueueStatus(queueNumber, "verified", "centre-ktm").catch((e) =>
+      console.warn("Supabase verify error:", e)
+    );
   };
 
   const completeProcurement = (queueNumber: number, weightKg?: number) => {
     let completedFarmerName = "Farmer";
     let completedPayout = 13440;
+    let targetBookingId: string | undefined;
 
     const nextBookings = bookings.map((b) => {
       if (b.queueNumber === queueNumber) {
@@ -907,6 +1083,7 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
         const total = finalWeight * b.mspPerKg;
         completedFarmerName = b.farmerName;
         completedPayout = total;
+        targetBookingId = b.id;
         return {
           ...b,
           quantityKg: finalWeight,
@@ -922,6 +1099,15 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
 
     const nextQueue = queue.map((item) => (item.queueNumber === queueNumber ? { ...item, status: "completed" as const } : item));
     setQueueState(nextQueue);
+
+    updateDbQueueStatus(queueNumber, "completed", "centre-ktm").catch((e) =>
+      console.warn("Supabase complete error:", e)
+    );
+    if (targetBookingId) {
+      updateDbBookingStatus(targetBookingId, "completed", 5).catch((e) =>
+        console.warn("Supabase booking complete error:", e)
+      );
+    }
 
     const nextCentres = centres.map((c, idx) =>
       idx === 0 ? { ...c, currentQueueLength: Math.max(0, c.currentQueueLength - 1) } : c
@@ -947,8 +1133,65 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
     });
   };
 
+  const rejectFarmer = (queueNumber: number, reason?: string) => {
+    const rejectionReason = reason || "Moisture content exceeded allowable threshold (>14.0%)";
+    let targetBookingId: string | undefined;
+    let targetFarmerName = "Farmer";
+
+    const nextBookings = bookings.map((b) => {
+      if (b.queueNumber === queueNumber) {
+        targetBookingId = b.id;
+        targetFarmerName = b.farmerName;
+        return {
+          ...b,
+          status: "cancelled" as const,
+          cancellationReason: rejectionReason,
+        };
+      }
+      return b;
+    });
+    setBookingsState(nextBookings);
+
+    const nextQueue = queue.map((item) =>
+      item.queueNumber === queueNumber ? { ...item, status: "rejected" as const } : item
+    );
+    setQueueState(nextQueue);
+
+    updateDbQueueStatus(queueNumber, "rejected", "centre-ktm").catch((e) =>
+      console.warn("Supabase reject error:", e)
+    );
+    if (targetBookingId) {
+      updateDbBookingStatus(targetBookingId, "cancelled", 0).catch((e) =>
+        console.warn("Supabase booking cancel error:", e)
+      );
+    }
+
+    const nextCentres = centres.map((c, idx) =>
+      idx === 0 ? { ...c, currentQueueLength: Math.max(0, c.currentQueueLength - 1) } : c
+    );
+    setCentresState(nextCentres);
+
+    const rejectNotif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      title: "Consignment Rejected ⚠️",
+      message: `Token #${queueNumber} (${targetFarmerName}) was rejected at the inspection bay. Reason: ${rejectionReason}.`,
+      timestamp: "Just now",
+      type: "procurement",
+      read: false,
+    };
+    const nextNotifications = [rejectNotif, ...notifications];
+    setNotificationsState(nextNotifications);
+
+    broadcastSync({
+      bookings: nextBookings,
+      queue: nextQueue,
+      centres: nextCentres,
+      notifications: nextNotifications,
+    });
+  };
+
   const reportDelay = (centreId: string, minutes: number, reason: string) => {
-    const targetCentre = centres.find((c) => c.id === centreId) || centres[0];
+    const targetCentre = getCentre(centreId);
     const nextCentres = centres.map((c) =>
       c.id === centreId
         ? {
@@ -961,10 +1204,14 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
     );
     setCentresState(nextCentres);
 
+    updateDbCentreDelay(centreId, minutes, reason).catch((e) =>
+      console.warn("Supabase delay error:", e)
+    );
+
     const delayNotif: NotificationItem = {
       id: `notif-${Date.now()}`,
-      title: `⚠️ Operational Delay Reported: +${minutes} mins`,
-      message: `${targetCentre.name} delay due to "${reason}". All farmer waiting times recalculated.`,
+      title: minutes > 0 ? `Operational Delay Reported (+${minutes}m)` : "Delay Cleared",
+      message: minutes > 0 ? reason : `Normal operations resumed at ${targetCentre.name}.`,
       timestamp: "Just now",
       type: "delay",
       read: false,
@@ -979,27 +1226,7 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
   };
 
   const clearDelay = (centreId: string) => {
-    const targetCentre = centres.find((c) => c.id === centreId) || centres[0];
-    const nextCentres = centres.map((c) =>
-      c.id === centreId ? { ...c, activeDelayMinutes: 0, delayReason: undefined, status: "normal" as const } : c
-    );
-    setCentresState(nextCentres);
-
-    const clearNotif: NotificationItem = {
-      id: `notif-${Date.now()}`,
-      title: "Delay Resolved ✓",
-      message: `${targetCentre.name} normal processing resumed. Waiting times normalized.`,
-      timestamp: "Just now",
-      type: "delay",
-      read: false,
-    };
-    const nextNotifications = [clearNotif, ...notifications];
-    setNotificationsState(nextNotifications);
-
-    broadcastSync({
-      centres: nextCentres,
-      notifications: nextNotifications,
-    });
+    reportDelay(centreId, 0, "Delay resolved");
   };
 
   return (
@@ -1007,13 +1234,13 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
       value={{
         role,
         setRole,
+        language,
+        setLanguage,
         user,
         setUser,
         isLoggedIn,
         setIsLoggedIn,
         logout,
-        language,
-        setLanguage,
         largeText,
         setLargeText,
         highContrast,
@@ -1022,6 +1249,8 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
         crops,
         bookings,
         activeBooking,
+        completedBooking,
+        rejectedBooking,
         queue,
         nowServing,
         notifications,
@@ -1036,6 +1265,7 @@ export function KisanQueueProvider({ children }: { children: React.ReactNode }) 
         markFarmerArrived,
         verifyFarmer,
         completeProcurement,
+        rejectFarmer,
         reportDelay,
         clearDelay,
         addNotification,

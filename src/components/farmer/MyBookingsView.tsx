@@ -11,15 +11,30 @@ export function MyBookingsView({
   onBack: () => void;
   onOpenReschedule: (booking: Booking) => void;
 }) {
-  const { bookings, cancelBooking, language } = useKisanQueue();
+  const { user, isLoggedIn, bookings, cancelBooking, language } = useKisanQueue();
   const [activeTab, setActiveTab] = useState<"upcoming" | "completed" | "cancelled">("upcoming");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
-  const filtered = bookings.filter((b) => {
+  const userBookings = React.useMemo(() => {
+    if (!isLoggedIn || !user || !user.farmerId || user.farmerId === "GUEST") {
+      return [];
+    }
+    return bookings.filter(
+      (b) =>
+        b.farmerId === user.farmerId ||
+        (user.mobile && b.farmerMobile === user.mobile)
+    );
+  }, [bookings, isLoggedIn, user]);
+
+  const filtered = userBookings.filter((b) => {
     if (activeTab === "upcoming") return b.status !== "completed" && b.status !== "cancelled";
     if (activeTab === "completed") return b.status === "completed";
     return b.status === "cancelled";
   });
+
+  const upcomingCount = userBookings.filter((b) => b.status !== "completed" && b.status !== "cancelled").length;
+  const completedCount = userBookings.filter((b) => b.status === "completed").length;
+  const cancelledCount = userBookings.filter((b) => b.status === "cancelled").length;
 
   return (
     <div className="content-stack pt-2 space-y-4">
@@ -47,7 +62,7 @@ export function MyBookingsView({
             activeTab === "upcoming" ? "bg-card text-primary shadow-sm font-bold" : "text-muted-foreground"
           }`}
         >
-          Upcoming ({bookings.filter((b) => b.status !== "completed" && b.status !== "cancelled").length})
+          Upcoming ({upcomingCount})
         </button>
         <button
           onClick={() => setActiveTab("completed")}
@@ -55,7 +70,7 @@ export function MyBookingsView({
             activeTab === "completed" ? "bg-card text-primary shadow-sm font-bold" : "text-muted-foreground"
           }`}
         >
-          Completed ({bookings.filter((b) => b.status === "completed").length})
+          Completed ({completedCount})
         </button>
         <button
           onClick={() => setActiveTab("cancelled")}
@@ -63,7 +78,7 @@ export function MyBookingsView({
             activeTab === "cancelled" ? "bg-card text-primary shadow-sm font-bold" : "text-muted-foreground"
           }`}
         >
-          Cancelled ({bookings.filter((b) => b.status === "cancelled").length})
+          Cancelled ({cancelledCount})
         </button>
       </div>
 

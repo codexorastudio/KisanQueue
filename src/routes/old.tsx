@@ -1244,17 +1244,17 @@ function SeniorCitizenModePage() {
   };
 
   const safeCentres = centres.length > 0 ? centres : [fallbackCentre];
-  const safeUser = user || {
-    id: "usr-01",
-    name: "Arun Kumar",
+  const safeUser = (user && user.name && user.name !== "Guest Farmer") ? user : {
+    id: user?.id || "usr-01",
+    name: user?.name || "Senior Farmer",
     role: "farmer" as const,
-    mobile: "+91 82812 51299",
-    farmerId: "KL-KTM-26047",
-    village: "Kumarakom",
-    district: "Kottayam",
-    primaryCrop: "Paddy (നെല്ല്)",
-    bankAccount: "State Bank of India **** 4891",
-    ifsc: "SBIN0070123",
+    mobile: user?.mobile || "+91 94470 12345",
+    farmerId: user?.farmerId && user.farmerId !== "GUEST" ? user.farmerId : "KL-KTM-00000",
+    village: user?.village || "Kumarakom",
+    district: user?.district || "Kottayam",
+    primaryCrop: user?.primaryCrop || "Paddy (നെല്ല്)",
+    bankAccount: user?.bankAccount || "State Bank of India **** 4891",
+    ifsc: user?.ifsc || "SBIN0070123",
   };
 
   // Active tab state
@@ -1422,13 +1422,13 @@ function SeniorCitizenModePage() {
       }
 
       speechIndexRef.current = idx;
-      const chunkText = speechQueueRef.current[idx];
+      const chunkText = speechQueueRef.current[idx] || "";
       const directGoogleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${encodeURIComponent(
         targetLang
       )}&client=tw-ob&q=${encodeURIComponent(chunkText)}`;
 
       const audio = document.createElement("audio");
-      audio.referrerPolicy = "no-referrer";
+      audio.setAttribute("referrerpolicy", "no-referrer");
       audio.src = directGoogleUrl;
       audioRef.current = audio;
 
@@ -1507,7 +1507,7 @@ function SeniorCitizenModePage() {
     setBookingSuccessModal(true);
 
     const centreTitle = getCentreTranslatedName(selectedCentre.name, language);
-    const cropName = selectedCrop.names[language] || selectedCrop.names.en;
+    const cropName = (selectedCrop.names as Record<string, string>)[language] || selectedCrop.names.en || selectedCrop.id;
 
     let confirmationSpeech = "";
     switch (language) {

@@ -1,4 +1,4 @@
-import { defineConfig, Plugin } from "vite";
+import { defineConfig, loadEnv, Plugin } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -55,17 +55,24 @@ function ttsDevPlugin(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [
-    ttsDevPlugin(),
-    tsconfigPaths(),
-    tanstackStart({
-      server: { entry: "src/server.ts" },
-    }),
-    nitro({
-      preset: "vercel",
-    }),
-    viteReact(),
-    tailwindcss(),
-  ],
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  return {
+    define: {
+      "process.env.GEMINI_API_KEY": JSON.stringify(env["GEMINI_API_KEY"] || env["VITE_GEMINI_API_KEY"] || ""),
+      "process.env.SARVAM_API_KEY": JSON.stringify(env["SARVAM_API_KEY"] || env["VITE_SARVAM_API_KEY"] || ""),
+    },
+    plugins: [
+      ttsDevPlugin(),
+      tsconfigPaths(),
+      tanstackStart({
+        server: { entry: "src/server.ts" },
+      }),
+      nitro({
+        preset: "vercel",
+      }),
+      viteReact(),
+      tailwindcss(),
+    ],
+  };
 });

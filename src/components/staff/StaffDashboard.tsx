@@ -16,6 +16,7 @@ import {
   Sliders,
   X,
   Check,
+  XCircle,
 } from "lucide-react";
 
 export function StaffDashboard() {
@@ -27,18 +28,22 @@ export function StaffDashboard() {
     markFarmerArrived,
     verifyFarmer,
     completeProcurement,
+    rejectFarmer,
     reportDelay,
     clearDelay,
     language,
   } = useKisanQueue();
 
   const [selectedCentreId, setSelectedCentreId] = useState<string>("centre-ktm");
-  const currentCentre = centres.find((c) => c.id === selectedCentreId) || centres[0];
+  const currentCentre = (centres.find((c) => c.id === selectedCentreId) || centres[0])!;
 
   const [showDelayModal, setShowDelayModal] = useState(false);
   const [delayMinutesInput, setDelayMinutesInput] = useState(20);
   const [delayReasonInput, setDelayReasonInput] = useState("Moisture meter recalibration & high vehicle volume");
   const [showVerifyModal, setShowVerifyModal] = useState<number | null>(null);
+  const [showRejectModal, setShowRejectModal] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState<string>("Moisture content exceeded allowable threshold (>14.0%)");
+  const [customRejectNotes, setCustomRejectNotes] = useState<string>("");
   const [actualWeight, setActualWeight] = useState(420);
   const [moistureReading, setMoistureReading] = useState(13.5);
 
@@ -49,6 +54,20 @@ export function StaffDashboard() {
     const item = queue.find((q) => q.queueNumber === tokenNum);
     setActualWeight(item?.quantityKg || 420);
     setShowVerifyModal(tokenNum);
+  };
+
+  const handleOpenReject = (tokenNum: number) => {
+    setShowRejectModal(tokenNum);
+    setRejectReason("Moisture content exceeded allowable threshold (>14.0%)");
+    setCustomRejectNotes("");
+  };
+
+  const handleConfirmReject = () => {
+    if (showRejectModal !== null) {
+      const finalReason = customRejectNotes.trim() ? `${rejectReason} — ${customRejectNotes.trim()}` : rejectReason;
+      rejectFarmer(showRejectModal, finalReason);
+      setShowRejectModal(null);
+    }
   };
 
   const handleReportDelaySubmit = (e: React.FormEvent) => {
@@ -207,20 +226,34 @@ export function StaffDashboard() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Option 1: Verify & Complete */}
             <button
               type="button"
               onClick={() => handleOpenVerify(nowServing)}
-              className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-md hover:scale-[1.01]"
+              className="flex items-center gap-1.5 rounded-xl bg-primary hover:bg-primary/90 active:scale-95 px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-md transition-all cursor-pointer"
+              title="Verify certified scale weight, moisture & approve DBT payment"
             >
               <ShieldCheck className="size-4" /> Verify & Complete
             </button>
 
+            {/* Option 2: Call Next */}
             <button
               type="button"
               onClick={callNextFarmer}
-              className="flex items-center gap-1.5 rounded-xl bg-secondary px-4 py-2.5 text-xs font-bold text-secondary-foreground shadow-sm hover:bg-secondary/80"
+              className="flex items-center gap-1.5 rounded-xl bg-secondary hover:bg-secondary/80 active:scale-95 px-4 py-2.5 text-xs font-bold text-secondary-foreground shadow-sm transition-all cursor-pointer"
+              title="Advance queue counter and notify next farmer in line"
             >
               <Megaphone className="size-4" /> Call Next (#{nowServing + 1})
+            </button>
+
+            {/* Option 3: Reject Consignment */}
+            <button
+              type="button"
+              onClick={() => handleOpenReject(nowServing)}
+              className="flex items-center gap-1.5 rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-950/70 px-3.5 py-2.5 text-xs font-bold shadow-xs transition-all cursor-pointer"
+              title="Reject load due to quality/moisture threshold failure"
+            >
+              <XCircle className="size-4" /> Reject Load
             </button>
           </div>
         </div>
@@ -258,32 +291,48 @@ export function StaffDashboard() {
                   <td className="py-2.5 px-2">
                     <span
                       className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                        item.queueNumber === nowServing
+                        item.status === "rejected"
+                          ? "bg-rose-500/15 text-rose-700"
+                          : item.queueNumber === nowServing
                           ? "bg-secondary text-secondary-foreground"
-                          : item.queueNumber < nowServing
+                          : item.queueNumber < nowServing || item.status === "completed"
                           ? "bg-emerald-500/15 text-emerald-700"
                           : "bg-muted text-muted-foreground"
                       }`}
                     >
-                      {item.queueNumber === nowServing ? "At Desk" : item.queueNumber < nowServing ? "Cleared" : "Waiting"}
+                      {item.status === "rejected"
+                        ? "Rejected"
+                        : item.queueNumber === nowServing
+                        ? "At Desk"
+                        : item.queueNumber < nowServing || item.status === "completed"
+                        ? "Cleared"
+                        : "Waiting"}
                     </span>
                   </td>
                   <td className="py-2.5 pl-2 text-right space-x-1.5">
-                    {item.queueNumber >= nowServing && (
+                    {item.queueNumber >= nowServing && item.status !== "rejected" && item.status !== "completed" && (
                       <>
                         <button
                           type="button"
                           onClick={() => markFarmerArrived(item.queueNumber)}
-                          className="rounded-lg border border-border px-2 py-1 text-[11px] font-semibold hover:bg-muted"
+                          className="rounded-lg border border-border px-2 py-1 text-[11px] font-semibold hover:bg-muted cursor-pointer"
                         >
                           Arrived
                         </button>
                         <button
                           type="button"
                           onClick={() => handleOpenVerify(item.queueNumber)}
-                          className="rounded-lg bg-primary/10 text-primary px-2 py-1 text-[11px] font-bold hover:bg-primary/20"
+                          className="rounded-lg bg-primary/10 text-primary px-2 py-1 text-[11px] font-bold hover:bg-primary/20 cursor-pointer"
                         >
                           Verify
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenReject(item.queueNumber)}
+                          className="rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 px-2 py-1 text-[11px] font-bold cursor-pointer"
+                          title="Reject load"
+                        >
+                          Reject
                         </button>
                       </>
                     )}
@@ -429,6 +478,122 @@ export function StaffDashboard() {
             >
               Approve & Trigger DBT Direct Bank Transfer <CheckCircle2 className="size-4" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Reason Modal */}
+      {showRejectModal !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-rose-500/10 text-rose-600">
+                  <XCircle className="size-5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-sm font-bold text-foreground">
+                    Reject Lot — Token #{showRejectModal}
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground">Document reason for MSP procurement rejection</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRejectModal(null)}
+                className="rounded-full p-1 text-muted-foreground hover:bg-muted"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {(() => {
+              const item = queue.find((q) => q.queueNumber === showRejectModal);
+              return (
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 text-xs space-y-1">
+                    <div className="flex justify-between font-bold">
+                      <span>Farmer:</span>
+                      <span className="text-foreground">{item?.farmerName || "Farmer"}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Crop & Weight:</span>
+                      <span>{item?.cropType || "Paddy"} ({item?.quantityKg || 0} kg)</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Current Gate / Status:</span>
+                      <span className="capitalize">{item?.gate || "Bay 1"} · {item?.status}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">
+                      Select Primary Rejection Reason
+                    </label>
+                    <select
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background p-2.5 text-xs font-medium outline-none focus:ring-1 focus:ring-rose-500"
+                    >
+                      <option value="Moisture content exceeded allowable threshold (>14.0%)">
+                        Moisture content exceeded allowable threshold (&gt;14.0%)
+                      </option>
+                      <option value="Foreign matter / admixture exceeds 2.0% Grade limit">
+                        Foreign matter / admixture exceeds 2.0% Grade limit
+                      </option>
+                      <option value="Pest damage / discoloration beyond acceptable MSP standard">
+                        Pest damage / discoloration beyond acceptable MSP standard
+                      </option>
+                      <option value="Identity mismatch / Incomplete farmer land certification">
+                        Identity mismatch / Incomplete farmer land certification
+                      </option>
+                      <option value="Vehicle overloaded / Non-compliant transit condition">
+                        Vehicle overloaded / Non-compliant transit condition
+                      </option>
+                      <option value="Other / Quality non-compliance">
+                        Other / Quality non-compliance
+                      </option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase text-muted-foreground block mb-1.5">
+                      Inspector Observation / Remedial Advice (Optional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={customRejectNotes}
+                      onChange={(e) => setCustomRejectNotes(e.target.value)}
+                      placeholder="e.g. Moisture measured 16.4%. Advised 24-hr sun drying before re-submission."
+                      className="w-full rounded-xl border border-input bg-background p-2.5 text-xs outline-none focus:ring-1 focus:ring-rose-500 resize-none"
+                    />
+                  </div>
+
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2.5 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                    <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-600" />
+                    <span>
+                      The farmer will be immediately notified with this rejection reason via SMS & App notification, and the token will be cancelled.
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowRejectModal(null)}
+                      className="flex-1 rounded-xl border border-border py-2.5 text-xs font-bold text-muted-foreground hover:bg-muted"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmReject}
+                      className="flex-1 rounded-xl bg-rose-600 py-2.5 text-xs font-bold text-white hover:bg-rose-700 shadow-sm flex items-center justify-center gap-1.5"
+                    >
+                      <XCircle className="size-4" /> Confirm Rejection
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

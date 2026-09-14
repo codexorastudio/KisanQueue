@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useKisanQueue } from "@/lib/store";
+import { ProcurementCentre } from "@/lib/types";
 import {
   Phone,
   PhoneCall,
@@ -67,9 +68,9 @@ export function IVRCallSimulator({
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [subStep, setSubStep] = useState<number>(0);
   const [selectedLang, setSelectedLang] = useState<"ml" | "en">("en");
-  const [callerName, setCallerName] = useState(user?.name || "Arun Kumar");
-  const [confirmedPhone, setConfirmedPhone] = useState(user?.mobile || "+91 82812 51299");
-  const [selectedCentre, setSelectedCentre] = useState(centres[0]);
+  const [callerName, setCallerName] = useState(user?.name && user.name !== "Guest Farmer" ? user.name : "Farmer");
+  const [confirmedPhone, setConfirmedPhone] = useState(user?.mobile || "+91 94470 12345");
+  const [selectedCentre, setSelectedCentre] = useState<ProcurementCentre>((centres[0] || ({} as ProcurementCentre))!);
   const [selectedCrop, setSelectedCrop] = useState("Paddy");
   const [selectedQuantity, setSelectedQuantity] = useState(420);
   const [qualityGrade, setQualityGrade] = useState("Grade A (<14% Moisture)");
@@ -329,10 +330,10 @@ export function IVRCallSimulator({
     // STEP 2: LOCATION & PROCUREMENT CENTRE
     // ==============================================================
     if (step === 2) {
-      let chosenCentre = centres[0];
+      let chosenCentre: ProcurementCentre = selectedCentre;
       const index = parseInt(digit, 10) - 1;
-      if (!isNaN(index) && index >= 0 && index < centres.length) {
-        chosenCentre = centres[index];
+      if (!isNaN(index) && index >= 0 && index < centres.length && centres[index]) {
+        chosenCentre = centres[index]!;
       }
 
       setSelectedCentre(chosenCentre);

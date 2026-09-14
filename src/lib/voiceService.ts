@@ -30,8 +30,20 @@ export function getSarvamApiKey(): string {
   if (typeof window === "undefined") return "";
   const stored = localStorage.getItem("sarvam_api_key");
   if (stored && stored.trim().length > 0) return stored.trim();
-  const envKey = (import.meta as any).env?.VITE_SARVAM_API_KEY;
-  if (envKey && typeof envKey === "string" && envKey.trim().length > 0) return envKey.trim();
+  try {
+    if (typeof process !== "undefined" && process.env) {
+      const procKey = process.env["SARVAM_API_KEY"] || process.env["VITE_SARVAM_API_KEY"];
+      if (procKey && typeof procKey === "string" && procKey.trim()) return procKey.trim();
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const envKey = import.meta.env["VITE_SARVAM_API_KEY"];
+    if (envKey && typeof envKey === "string" && envKey.trim().length > 0) return envKey.trim();
+  } catch {
+    // ignore
+  }
   return "";
 }
 

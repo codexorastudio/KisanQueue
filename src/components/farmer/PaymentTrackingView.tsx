@@ -124,7 +124,7 @@ export function PaymentTrackingView({ onBack }: { onBack: () => void }) {
             </div>
 
             <div className="rounded-xl border border-border bg-muted/40 p-3 text-left font-mono text-xs space-y-1.5">
-              <div className="flex justify-between"><span>Farmer:</span><strong>Arun Kumar (KL-KTM-26047)</strong></div>
+              <div className="flex justify-between"><span>Farmer:</span><strong>{user?.name && user.name !== "Guest Farmer" ? user.name : "Farmer"} ({user?.farmerId && user.farmerId !== "GUEST" ? user.farmerId : "KL-KTM-26047"})</strong></div>
               <div className="flex justify-between"><span>Commodity:</span><strong>Paddy Grade A (420 kg)</strong></div>
               <div className="flex justify-between"><span>MSP Rate:</span><strong>₹32.00 / kg</strong></div>
               <div className="flex justify-between text-primary font-bold border-t border-border pt-1"><span>Net Disbursed:</span><strong>₹13,440.00</strong></div>

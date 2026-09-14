@@ -43,7 +43,7 @@ export function CentreMapView({ onBack, onSelectCentre }: CentreMapViewProps) {
   const [mapType, setMapType] = useState<"street" | "satellite">("satellite");
   const [isMapReady, setIsMapReady] = useState(false);
 
-  const activeCentre = centres.find((c) => c.id === selectedId) || centres[0];
+  const activeCentre = (centres.find((c) => c.id === selectedId) || centres[0] || recommendedCentre)!;
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);

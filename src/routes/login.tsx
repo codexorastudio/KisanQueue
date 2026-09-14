@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { useKisanQueue } from "@/lib/store";
 import { User, Language } from "@/lib/types";
 import { SUPPORTED_LANGUAGES } from "@/lib/translations";
+import { fetchUserByMobile, createDbUser } from "@/lib/db";
 import {
   Phone,
   ArrowLeft,
@@ -131,22 +132,23 @@ export function FarmerOnboardingLoginPage() {
 
   // Steps: "phone" -> "otp" -> "preferences" -> "crops"
   const [step, setStep] = useState<"phone" | "otp" | "preferences" | "crops">("phone");
-  const [phoneNumber, setPhoneNumber] = useState("8281251299");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [matchedDbUser, setMatchedDbUser] = useState<User | null>(null);
 
   // User Profile
   const [pendingUser, setPendingUser] = useState<Partial<User>>({
-    name: "Arun Kumar",
-    mobile: "+91 82812 51299",
-    farmerId: "KL-KTM-26047",
-    village: "Kumarakom",
+    name: "",
+    mobile: "",
+    farmerId: "",
+    village: "",
     district: "Kottayam",
   });
 
   // Step 2: Preferences
-  const [age, setAge] = useState<string>("48");
+  const [age, setAge] = useState<string>("");
   const [fontSizeChoice, setFontSizeChoice] = useState<"normal" | "large" | "xlarge">(
     largeText ? "large" : "normal"
   );
@@ -162,7 +164,7 @@ export function FarmerOnboardingLoginPage() {
   };
 
   // STEP 1: Request OTP
-  const handleRequestOtp = (e: React.FormEvent) => {
+  const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanNumber = phoneNumber.replace(/\D/g, "");
     if (cleanNumber.length < 10) {
@@ -173,15 +175,37 @@ export function FarmerOnboardingLoginPage() {
     setFeedback(null);
     setIsLoading(true);
 
-    setTimeout(() => {
+    try {
+      const existing = await fetchUserByMobile(cleanNumber);
+      if (existing) {
+        setMatchedDbUser(existing);
+        setPendingUser(existing);
+        if (existing.crops && existing.crops.length > 0) {
+          setSelectedCrops(existing.crops);
+        }
+        setFeedback(`Welcome back ${existing.name}! (Demo OTP: 2604)`);
+      } else {
+        setMatchedDbUser(null);
+        setPendingUser({
+          name: "",
+          mobile: "+91 " + cleanNumber,
+          farmerId: `KL-KTM-${Math.floor(10000 + Math.random() * 90000)}`,
+          village: "Kumarakom",
+          district: "Kottayam",
+          role: "farmer",
+        });
+        setFeedback(`New Farmer verification code sent to +91 ${cleanNumber} (Demo: 2604)`);
+      }
+    } catch {
+      setMatchedDbUser(null);
+    } finally {
       setIsLoading(false);
       setStep("otp");
       setOtpCode("2604");
-      setFeedback("OTP sent to +91 " + cleanNumber + " (Demo Code: 2604)");
-    }, 350);
+    }
   };
 
-  // STEP 2: Verify OTP -> Moves to Preferences
+  // STEP 2: Verify OTP -> Moves to Preferences or Dashboard
   const handleVerifyOtp = (e: React.FormEvent) => {
     e.preventDefault();
     if (otpCode.length < 4) {
@@ -190,20 +214,30 @@ export function FarmerOnboardingLoginPage() {
     }
 
     setFeedback(null);
-    const cleanNumber = phoneNumber.replace(/\D/g, "");
-    setPendingUser({
-      name: "Arun Kumar",
-      mobile: "+91 " + cleanNumber,
-      farmerId: "KL-KTM-26047",
-      village: "Kumarakom",
-      district: "Kottayam",
-    });
 
+    if (matchedDbUser) {
+      // Existing User! Instant login
+      setIsLoading(true);
+      setUser(matchedDbUser);
+      setIsLoggedIn(true);
+      addNotification(
+        "Welcome Back! 👨‍🌾",
+        `Logged in as ${matchedDbUser.name} (${matchedDbUser.farmerId}).`,
+        "booking"
+      );
+      setTimeout(() => {
+        setIsLoading(false);
+        navigate({ to: "/" });
+      }, 300);
+      return;
+    }
+
+    // New User! Proceed to setup profile & preferences
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
       setStep("preferences");
-    }, 300);
+    }, 200);
   };
 
   // Font Size Selection
@@ -216,8 +250,8 @@ export function FarmerOnboardingLoginPage() {
     }
   };
 
-  // Complete Onboarding & Save
-  const handleCompleteSetup = () => {
+  // Complete Onboarding & Save to Supabase
+  const handleCompleteSetup = async () => {
     setIsLoading(true);
 
     const cropNames = selectedCrops
@@ -225,20 +259,27 @@ export function FarmerOnboardingLoginPage() {
       .filter(Boolean)
       .join(" & ");
 
-    setUser((prev: User) => ({
-      ...prev,
+    const userProfile: Partial<User> = {
       ...pendingUser,
-      crops: selectedCrops,
-      primaryCrop: cropNames || "Cultivated Crops",
-    }));
+      name: pendingUser.name?.trim() || "Farmer",
+      village: pendingUser.village?.trim() || "Kumarakom",
+      district: pendingUser.district?.trim() || "Kottayam",
+      crops: selectedCrops.length > 0 ? selectedCrops : ["paddy"],
+      primaryCrop: cropNames || "Paddy",
+      role: "farmer",
+    };
 
+    let savedUser = await createDbUser(userProfile);
+    const finalUser = savedUser || (userProfile as User);
+
+    setUser(finalUser);
     setIsLoggedIn(true);
 
-    addNotification({
-      title: "Registration Complete",
-      message: `Welcome ${pendingUser.name || "Farmer"}! Selected crops: ${cropNames}`,
-      type: "success",
-    });
+    addNotification(
+      "Registration Complete 🎉",
+      `Welcome ${finalUser.name}! Your verified Farmer ID is ${finalUser.farmerId}.`,
+      "booking"
+    );
 
     const isSenior = Number(age) >= 60;
 
@@ -325,7 +366,7 @@ export function FarmerOnboardingLoginPage() {
                 </div>
                 <input
                   type="tel"
-                  placeholder="Phone Number"
+                  placeholder="Enter 10-digit mobile number"
                   value={phoneNumber}
                   maxLength={10}
                   onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
@@ -341,9 +382,31 @@ export function FarmerOnboardingLoginPage() {
                 {isLoading ? (
                   <div className="size-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <span>Login</span>
+                  <span>Send Verification Code</span>
                 )}
               </button>
+
+              <div className="pt-2 flex flex-col items-center gap-1.5 text-center">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-stone-400">
+                  Quick Demo Accounts
+                </span>
+                <div className="flex flex-wrap items-center justify-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setPhoneNumber("8281251299")}
+                    className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                  >
+                    8281251299 (Existing)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPhoneNumber("9847" + Math.floor(100000 + Math.random() * 900000))}
+                    className="text-[11px] font-semibold text-stone-600 bg-stone-100 hover:bg-stone-200 border border-stone-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                  >
+                    + New Farmer Number
+                  </button>
+                </div>
+              </div>
             </form>
           </div>
         )}
@@ -446,6 +509,54 @@ export function FarmerOnboardingLoginPage() {
             </div>
 
             <div className="space-y-4">
+              {/* Farmer Profile Fields */}
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-bold text-stone-700 px-1">
+                  <UserRound className="size-3.5 text-[#183917]" />
+                  <span>Full Name</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Suresh Pillai"
+                  value={pendingUser.name || ""}
+                  onChange={(e) => setPendingUser((prev) => ({ ...prev, name: e.target.value }))}
+                  required
+                  className="w-full h-11 rounded-2xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-700/30 focus:border-emerald-700 transition-all shadow-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-stone-700 px-1">
+                    Village / Bhavan
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Kumarakom"
+                    value={pendingUser.village || ""}
+                    onChange={(e) => setPendingUser((prev) => ({ ...prev, village: e.target.value }))}
+                    className="w-full h-11 rounded-2xl border border-stone-200 bg-white px-3 text-xs font-medium text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-700/30 focus:border-emerald-700 transition-all shadow-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-stone-700 px-1">
+                    District
+                  </label>
+                  <select
+                    value={pendingUser.district || "Kottayam"}
+                    onChange={(e) => setPendingUser((prev) => ({ ...prev, district: e.target.value }))}
+                    className="w-full h-11 rounded-2xl border border-stone-200 bg-white px-3 text-xs font-medium text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-700/30 focus:border-emerald-700 transition-all shadow-sm"
+                  >
+                    <option value="Kottayam">Kottayam</option>
+                    <option value="Alappuzha">Alappuzha</option>
+                    <option value="Idukki">Idukki</option>
+                    <option value="Palakkad">Palakkad</option>
+                    <option value="Ernakulam">Ernakulam</option>
+                  </select>
+                </div>
+              </div>
+
               {/* 1. Age Input */}
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-stone-700 px-1">
@@ -457,7 +568,7 @@ export function FarmerOnboardingLoginPage() {
                     type="number"
                     min={18}
                     max={110}
-                    placeholder="Enter Age"
+                    placeholder="Enter Age (e.g. 52)"
                     value={age}
                     onChange={(e) => setAge(e.target.value.replace(/\D/g, ""))}
                     className="w-full h-12 rounded-2xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-700/30 focus:border-emerald-700 transition-all shadow-sm"
