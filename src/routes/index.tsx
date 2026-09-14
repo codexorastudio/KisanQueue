@@ -449,19 +449,19 @@ function KisanQueueApp() {
                 </span>
               </a>
 
-              {/* 60+ Senior Citizen Mode */}
+              {/* Accessible / Senior Mode */}
               <a
                 href="/old"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group flex items-center justify-between rounded-xl border border-emerald-300/80 bg-emerald-50/60 p-2 text-xs font-bold text-emerald-950 hover:bg-emerald-100/80 transition-all dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800/80 hover:shadow-xs"
-                title="Open Senior Mode (Large fonts & Malayalam voice) in a new tab"
+                title="Open Accessible Mode (Enlarged text & audio guidance) in a new tab"
               >
                 <span className="flex items-center gap-2">
                   <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-600 text-white text-xs">
-                    👵
+                    🌾
                   </span>
-                  <span>60+ Senior Mode</span>
+                  <span>Accessible Mode (Large Text)</span>
                 </span>
                 <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-700 dark:text-emerald-400">
                   /old <ExternalLink className="size-3" />
@@ -905,13 +905,13 @@ function FarmerProfileView({
           >
             <div className="flex items-center gap-3">
               <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-700 text-white text-base shadow-xs">
-                👵
+                🌾
               </span>
               <div>
                 <strong className="block text-xs font-extrabold text-emerald-950 dark:text-emerald-200">
                   {language === "ml"
-                    ? "മുതിർന്ന കർഷകർക്കുള്ള മോഡ് (60+ Senior Mode)"
-                    : "Senior Citizens Mode (60+)"}
+                    ? "സുഗമ മോഡ് (Accessible & Large Text Mode)"
+                    : "Accessible & Large Text Mode"}
                 </strong>
                 <span className="block text-[10px] text-emerald-800/80 dark:text-emerald-400/80">
                   Ultra-large typography & Malayalam voice

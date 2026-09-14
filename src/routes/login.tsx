@@ -575,7 +575,7 @@ export function FarmerOnboardingLoginPage() {
                   />
                   {age && Number(age) >= 60 && (
                     <span className="absolute right-3 px-2.5 py-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 rounded-lg">
-                      60+ Senior Mode 👵
+                      Accessible Mode Enabled 🌾
                     </span>
                   )}
                 </div>
