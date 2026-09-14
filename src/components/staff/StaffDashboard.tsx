@@ -517,11 +517,11 @@ export function StaffDashboard() {
                     </div>
                     <div className="flex justify-between text-muted-foreground">
                       <span>Crop & Weight:</span>
-                      <span>{item?.cropType || "Paddy"} ({item?.quantityKg || 0} kg)</span>
+                      <span>{item?.crop || "Paddy"} ({item?.quantityKg || 0} kg)</span>
                     </div>
                     <div className="flex justify-between text-muted-foreground">
                       <span>Current Gate / Status:</span>
-                      <span className="capitalize">{item?.gate || "Bay 1"} · {item?.status}</span>
+                      <span className="capitalize">Bay 1 · {item?.status || "waiting"}</span>
                     </div>
                   </div>
 

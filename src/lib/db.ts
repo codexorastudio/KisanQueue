@@ -385,7 +385,7 @@ export async function fetchQueueItemsFromDb(centreId?: string): Promise<QueueIte
 
 export async function updateDbQueueStatus(
   queueNumber: number,
-  status: "waiting" | "serving" | "verified" | "completed" | "skipped",
+  status: "waiting" | "serving" | "verified" | "completed" | "skipped" | "rejected",
   centreId?: string
 ): Promise<void> {
   try {
