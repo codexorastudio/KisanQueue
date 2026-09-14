@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 
 import appCss from "../styles.css?url";
 
@@ -93,13 +93,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "KisanQueue · Farmer Procurement & Queue" },
-      { name: "description", content: "Smart procurement and live queue management system for farmers" },
+      { title: "KisanQueue · Kerala MSP Procurement & Queue" },
+      { name: "description", content: "Smart procurement and live queue management system for Kerala farmers" },
       { name: "author", content: "KisanQueue" },
-      { property: "og:title", content: "KisanQueue · Farmer Procurement & Queue" },
-      { property: "og:description", content: "Smart procurement and live queue management system for farmers" },
+      { property: "og:title", content: "KisanQueue · Kerala MSP Procurement & Queue" },
+      { property: "og:description", content: "Smart procurement and live queue management system for Kerala farmers" },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: "/pwa-512x512.png" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "theme-color", content: "#123D35" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "KisanQueue" },
+      { name: "application-name", content: "KisanQueue" },
+      { name: "msapplication-TileColor", content: "#123D35" },
     ],
     links: [
       {
@@ -123,7 +131,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
       },
+      { rel: "manifest", href: "/manifest.json" },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32x32.png" },
+      { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16x16.png" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
     ],
   }),
   shellComponent: RootShell,
@@ -150,6 +162,17 @@ import { KisanQueueProvider } from "@/lib/store";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker
+          .register("/sw.js")
+          .then((reg) => console.log("KisanQueue ServiceWorker registered:", reg.scope))
+          .catch((err) => console.warn("KisanQueue SW registration:", err));
+      });
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
